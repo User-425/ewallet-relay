@@ -26,6 +26,10 @@ class UserPreferencesRepository @Inject constructor(
         val DEVICE_ID = stringPreferencesKey("device_id")
         val FIRST_LAUNCH = booleanPreferencesKey("first_launch")
         val BATTERY_OPTIMIZATION_SHOWN = booleanPreferencesKey("battery_optimization_shown")
+        val NTFY_ENABLED = booleanPreferencesKey("ntfy_enabled")
+        val NTFY_URL = stringPreferencesKey("ntfy_url")
+        val NTFY_TOPIC = stringPreferencesKey("ntfy_topic")
+        val NTFY_USE_AUTH = booleanPreferencesKey("ntfy_use_auth")
     }
     
     val endpointUrl: Flow<String> = context.dataStore.data.map { preferences ->
@@ -54,6 +58,22 @@ class UserPreferencesRepository @Inject constructor(
     
     val batteryOptimizationShown: Flow<Boolean> = context.dataStore.data.map { preferences ->
         preferences[PreferencesKeys.BATTERY_OPTIMIZATION_SHOWN] ?: false
+    }
+    
+    val ntfyEnabled: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.NTFY_ENABLED] ?: false
+    }
+    
+    val ntfyUrl: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.NTFY_URL] ?: "https://ntfy.sh"
+    }
+    
+    val ntfyTopic: Flow<String> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.NTFY_TOPIC] ?: ""
+    }
+    
+    val ntfyUseAuth: Flow<Boolean> = context.dataStore.data.map { preferences ->
+        preferences[PreferencesKeys.NTFY_USE_AUTH] ?: false
     }
     
     suspend fun setEndpointUrl(url: String) {
@@ -98,6 +118,30 @@ class UserPreferencesRepository @Inject constructor(
         }
     }
     
+    suspend fun setNtfyEnabled(enabled: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.NTFY_ENABLED] = enabled
+        }
+    }
+    
+    suspend fun setNtfyUrl(url: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.NTFY_URL] = url
+        }
+    }
+    
+    suspend fun setNtfyTopic(topic: String) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.NTFY_TOPIC] = topic
+        }
+    }
+    
+    suspend fun setNtfyUseAuth(useAuth: Boolean) {
+        context.dataStore.edit { preferences ->
+            preferences[PreferencesKeys.NTFY_USE_AUTH] = useAuth
+        }
+    }
+    
     suspend fun getEndpointUrlSync(): String {
         return endpointUrl.first()
     }
@@ -112,5 +156,21 @@ class UserPreferencesRepository @Inject constructor(
     
     suspend fun getDeviceIdSync(): String {
         return deviceId.first()
+    }
+    
+    suspend fun getNtfyEnabledSync(): Boolean {
+        return ntfyEnabled.first()
+    }
+    
+    suspend fun getNtfyUrlSync(): String {
+        return ntfyUrl.first()
+    }
+    
+    suspend fun getNtfyTopicSync(): String {
+        return ntfyTopic.first()
+    }
+    
+    suspend fun getNtfyUseAuthSync(): Boolean {
+        return ntfyUseAuth.first()
     }
 }

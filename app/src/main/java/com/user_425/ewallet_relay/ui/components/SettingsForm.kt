@@ -91,6 +91,121 @@ fun SettingsForm(
                 }
             )
             
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            
+            // NTFY Configuration Section Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "Kirim via ntfy",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = "Relay notifikasi ke topic ntfy",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Switch(
+                    checked = uiState.ntfyEnabled,
+                    onCheckedChange = { onEvent(UiEvent.UpdateNtfyEnabled(it)) }
+                )
+            }
+            
+            if (uiState.ntfyEnabled) {
+                // ntfy Server URL
+                OutlinedTextField(
+                    value = uiState.ntfyUrl,
+                    onValueChange = { onEvent(UiEvent.UpdateNtfyUrl(it)) },
+                    label = { Text("ntfy Server URL") },
+                    placeholder = { Text("https://ntfy.sh") },
+                    isError = uiState.validationErrors.ntfyUrl != null,
+                    supportingText = uiState.validationErrors.ntfyUrl?.let { { Text(text = it, style = MaterialTheme.typography.bodyMedium) } },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri)
+                )
+
+                // ntfy Topic
+                OutlinedTextField(
+                    value = uiState.ntfyTopic,
+                    onValueChange = { onEvent(UiEvent.UpdateNtfyTopic(it)) },
+                    label = { Text("ntfy Topic") },
+                    placeholder = { Text("nama_topic") },
+                    isError = uiState.validationErrors.ntfyTopic != null,
+                    supportingText = uiState.validationErrors.ntfyTopic?.let { { Text(text = it, style = MaterialTheme.typography.bodyMedium) } },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                // ntfy Use Auth Toggle Row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Gunakan Autentikasi ntfy",
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Aktifkan jika topic/server memerlukan token akses",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = uiState.ntfyUseAuth,
+                        onCheckedChange = { onEvent(UiEvent.UpdateNtfyUseAuth(it)) }
+                    )
+                }
+
+                // ntfy Access Token (if auth is enabled)
+                if (uiState.ntfyUseAuth) {
+                    OutlinedTextField(
+                        value = uiState.ntfyToken,
+                        onValueChange = { onEvent(UiEvent.UpdateNtfyToken(it)) },
+                        label = { Text("ntfy Access Token") },
+                        placeholder = { Text("Masukkan token ntfy") },
+                        isError = uiState.validationErrors.ntfyToken != null,
+                        supportingText = uiState.validationErrors.ntfyToken?.let { { Text(text = it, style = MaterialTheme.typography.bodyMedium) } },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        visualTransformation = if (uiState.isNtfyTokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            IconButton(
+                                onClick = { onEvent(UiEvent.ToggleNtfyTokenVisibility) }
+                            ) {
+                                Icon(
+                                    imageVector = if (uiState.isNtfyTokenVisible) Icons.Filled.Visibility else Icons.Filled.VisibilityOff,
+                                    contentDescription = if (uiState.isNtfyTokenVisible) "Sembunyikan Token" else "Tampilkan Token",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    )
+                }
+            }
+            
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            
             // Filter Packages
             OutlinedTextField(
                 value = uiState.filterPackages,

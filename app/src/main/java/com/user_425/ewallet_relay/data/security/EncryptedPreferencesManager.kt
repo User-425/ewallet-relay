@@ -16,6 +16,7 @@ class EncryptedPreferencesManager @Inject constructor(
     companion object {
         private const val FILE_NAME = "encrypted_notification_listener_prefs"
         private const val API_KEY_PREF = "api_key"
+        private const val NTFY_TOKEN_PREF = "ntfy_token"
     }
     
     private val masterKey: MasterKey by lazy {
@@ -52,5 +53,25 @@ class EncryptedPreferencesManager @Inject constructor(
     
     fun hasApiKey(): Boolean {
         return !getApiKey().isNullOrEmpty()
+    }
+
+    fun saveNtfyToken(token: String?) {
+        encryptedSharedPreferences.edit()
+            .putString(NTFY_TOKEN_PREF, token)
+            .apply()
+    }
+    
+    fun getNtfyToken(): String? {
+        return encryptedSharedPreferences.getString(NTFY_TOKEN_PREF, null)
+    }
+    
+    fun clearNtfyToken() {
+        encryptedSharedPreferences.edit()
+            .remove(NTFY_TOKEN_PREF)
+            .apply()
+    }
+    
+    fun hasNtfyToken(): Boolean {
+        return !getNtfyToken().isNullOrEmpty()
     }
 }

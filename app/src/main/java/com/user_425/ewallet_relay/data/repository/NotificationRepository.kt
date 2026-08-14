@@ -57,81 +57,192 @@ class NotificationRepository @Inject constructor(
     }
     
     suspend fun sendNotification(payload: NotificationPayload): Result<String> {
-        return try {
-            val endpointUrl = userPreferencesRepository.getEndpointUrlSync()
-            val apiKey = encryptedPreferencesManager.getApiKey()
-            
-            if (endpointUrl.isBlank()) {
-                return Result.failure(Exception("Endpoint URL tidak boleh kosong"))
-            }
-            
-            if (!NetworkUtils.isNetworkAvailable(context)) {
-                // Queue for later retry
+        val endpointUrl = userPreferencesRepository.getEndpointUrlSync()
+        val apiKey = encryptedPreferencesManager.getApiKey()
+        
+        val ntfyEnabled = userPreferencesRepository.getNtfyEnabledSync()
+        val ntfyUrl = userPreferencesRepository.getNtfyUrlSync()
+        val ntfyTopic = userPreferencesRepository.getNtfyTopicSync()
+        val ntfyUseAuth = userPreferencesRepository.getNtfyUseAuthSync()
+        val ntfyToken = encryptedPreferencesManager.getNtfyToken()
+        
+        if (endpointUrl.isBlank() && !ntfyEnabled) {
+            return Result.failure(Exception("Endpoint URL dan ntfy tidak aktif atau kosong"))
+        }
+        
+        var endpointSuccess = true
+        var ntfySuccess = true
+        var errorMessage = ""
+        
+        // 1. Send to Webhook Endpoint
+        if (endpointUrl.isNotBlank()) {
+            try {
+                if (!NetworkUtils.isNetworkAvailable(context)) {
+                    queueNotification(payload, endpointUrl, apiKey)
+                    insertLog("Tidak ada koneksi: notifikasi disimpan dalam antrian", "QUEUED", payload.packageName)
+                    endpointSuccess = false
+                    errorMessage = "Tidak ada koneksi internet untuk Webhook"
+                } else {
+                    val response = apiService.sendNotification(
+                        url = endpointUrl,
+                        apiKey = apiKey,
+                        payload = payload
+                    )
+                    
+                    if (response.isSuccessful) {
+                        val statusCode = response.code()
+                        insertLog("POST $statusCode ${payload.packageName}: ${payload.text?.take(50) ?: ""}", "SUCCESS")
+                    } else {
+                        val error = "HTTP ${response.code()}: ${response.message()}"
+                        queueNotification(payload, endpointUrl, apiKey)
+                        insertLog("Gagal kirim Webhook: disimpan dalam antrian: $error", "ERROR", payload.packageName)
+                        endpointSuccess = false
+                        errorMessage = error
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending to Webhook", e)
                 queueNotification(payload, endpointUrl, apiKey)
-                insertLog("Tidak ada koneksi - notifikasi disimpan dalam antrian", "QUEUED", payload.packageName)
-                return Result.success("Queued for retry")
+                insertLog("Error Webhook: disimpan dalam antrian: ${e.message}", "ERROR", payload.packageName)
+                endpointSuccess = false
+                errorMessage = e.message ?: "Unknown webhook error"
             }
-            
-            val response = apiService.sendNotification(
-                url = endpointUrl,
-                apiKey = apiKey,
-                payload = payload
-            )
-            
-            if (response.isSuccessful) {
-                val statusCode = response.code()
-                insertLog("POST $statusCode ${payload.packageName} — ${payload.text?.take(50) ?: ""}", "SUCCESS")
-                Result.success("Success: ${response.code()}")
-            } else {
-                val error = "HTTP ${response.code()}: ${response.message()}"
-                queueNotification(payload, endpointUrl, apiKey)
-                insertLog("Gagal kirim - disimpan dalam antrian: $error", "ERROR", payload.packageName)
-                Result.failure(Exception(error))
+        }
+        
+        // 2. Send to Ntfy
+        if (ntfyEnabled && ntfyTopic.isNotBlank()) {
+            try {
+                if (!NetworkUtils.isNetworkAvailable(context)) {
+                    insertLog("Tidak ada koneksi: Gagal kirim ke ntfy", "ERROR", payload.packageName)
+                    ntfySuccess = false
+                    errorMessage = if (errorMessage.isEmpty()) "Tidak ada koneksi untuk ntfy" else "$errorMessage; Tidak ada koneksi untuk ntfy"
+                } else {
+                    val fullUrl = "${ntfyUrl.trimEnd('/')}/${ntfyTopic.trimStart('/')}"
+                    val authHeader = if (ntfyUseAuth && !ntfyToken.isNullOrBlank()) "Bearer ${ntfyToken.trim()}" else null
+                    
+                    val ntfyMessage = buildString {
+                        append("Aplikasi: ${payload.appName}\n")
+                        if (!payload.title.isNullOrEmpty()) append("Judul: ${payload.title}\n")
+                        if (!payload.text.isNullOrEmpty()) append("Pesan: ${payload.text}\n")
+                        if (!payload.amountDetected.isNullOrEmpty()) append("Nominal: ${payload.amountDetected}\n")
+                        append("Waktu: ${payload.postedAt}")
+                    }
+                    
+                    val response = apiService.sendNtfyNotification(
+                        url = fullUrl,
+                        title = payload.title ?: payload.appName,
+                        priority = "3",
+                        tags = "ewallet-relay",
+                        authorization = authHeader,
+                        message = ntfyMessage
+                    )
+                    
+                    if (response.isSuccessful) {
+                        insertLog("Ntfy Berhasil: Terkirim ke topic $ntfyTopic", "SUCCESS")
+                    } else {
+                        val error = "HTTP ${response.code()}: ${response.message()}"
+                        insertLog("Ntfy Gagal: $error", "ERROR", payload.packageName)
+                        ntfySuccess = false
+                        errorMessage = if (errorMessage.isEmpty()) error else "$errorMessage; $error"
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending to ntfy", e)
+                insertLog("Ntfy Error: ${e.message}", "ERROR", payload.packageName)
+                ntfySuccess = false
+                errorMessage = if (errorMessage.isEmpty()) e.message ?: "Ntfy error" else "$errorMessage; ${e.message}"
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error sending notification", e)
-            val endpointUrl = userPreferencesRepository.getEndpointUrlSync()
-            val apiKey = encryptedPreferencesManager.getApiKey()
-            queueNotification(payload, endpointUrl, apiKey)
-            insertLog("Error - disimpan dalam antrian: ${e.message}", "ERROR", payload.packageName)
-            Result.failure(e)
+        }
+        
+        return if (endpointSuccess && ntfySuccess) {
+            Result.success("Success")
+        } else {
+            Result.failure(Exception(errorMessage.ifEmpty { "Gagal mengirim notifikasi" }))
         }
     }
     
     suspend fun sendTestNotification(): Result<String> {
-        return try {
-            val endpointUrl = userPreferencesRepository.getEndpointUrlSync()
-            val apiKey = encryptedPreferencesManager.getApiKey()
-            
-            if (endpointUrl.isBlank()) {
-                return Result.failure(Exception("Endpoint URL tidak boleh kosong"))
-            }
-            
-            val testPayload = TestPayload(message = "This is a test notification from the Android app.")
-            
-            val response = apiService.sendTestNotification(
-                url = endpointUrl,
-                apiKey = apiKey,
-                payload = testPayload
-            )
-            
-            if (response.isSuccessful) {
-                insertLog("Test berhasil: HTTP ${response.code()}", "SUCCESS")
-                Result.success("Test berhasil: ${response.code()}")
-            } else {
-                if (response.code() == 400) { // Check if the error code is 400
-                    insertLog("Test berhasil: HTTP 400 (dianggap berhasil)", "SUCCESS")
-                    Result.success("Test berhasil: 400 (dianggap berhasil)")
+        val endpointUrl = userPreferencesRepository.getEndpointUrlSync()
+        val apiKey = encryptedPreferencesManager.getApiKey()
+        
+        val ntfyEnabled = userPreferencesRepository.getNtfyEnabledSync()
+        val ntfyUrl = userPreferencesRepository.getNtfyUrlSync()
+        val ntfyTopic = userPreferencesRepository.getNtfyTopicSync()
+        val ntfyUseAuth = userPreferencesRepository.getNtfyUseAuthSync()
+        val ntfyToken = encryptedPreferencesManager.getNtfyToken()
+        
+        if (endpointUrl.isBlank() && !ntfyEnabled) {
+            return Result.failure(Exception("Endpoint URL dan ntfy tidak aktif atau kosong"))
+        }
+        
+        var endpointSuccess = true
+        var ntfySuccess = true
+        var errorMessage = ""
+        
+        if (endpointUrl.isNotBlank()) {
+            try {
+                val testPayload = TestPayload(message = "This is a test notification from the Android app.")
+                
+                val response = apiService.sendTestNotification(
+                    url = endpointUrl,
+                    apiKey = apiKey,
+                    payload = testPayload
+                )
+                
+                if (response.isSuccessful) {
+                    insertLog("Test Webhook berhasil: HTTP ${response.code()}", "SUCCESS")
                 } else {
-                    val error = "Test gagal: HTTP ${response.code()}"
-                    insertLog(error, "ERROR")
-                    Result.failure(Exception(error))
+                    if (response.code() == 400) { // Check if the error code is 400
+                        insertLog("Test Webhook berhasil: HTTP 400 (dianggap berhasil)", "SUCCESS")
+                    } else {
+                        val error = "Test Webhook gagal: HTTP ${response.code()}"
+                        insertLog(error, "ERROR")
+                        endpointSuccess = false
+                        errorMessage = error
+                    }
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending test notification to Webhook", e)
+                insertLog("Test Webhook error: ${e.message}", "ERROR")
+                endpointSuccess = false
+                errorMessage = e.message ?: "Webhook test error"
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error sending test notification", e)
-            insertLog("Test error: ${e.message}", "ERROR")
-            Result.failure(e)
+        }
+        
+        if (ntfyEnabled && ntfyTopic.isNotBlank()) {
+            try {
+                val fullUrl = "${ntfyUrl.trimEnd('/')}/${ntfyTopic.trimStart('/')}"
+                val authHeader = if (ntfyUseAuth && !ntfyToken.isNullOrBlank()) "Bearer ${ntfyToken.trim()}" else null
+                
+                val response = apiService.sendNtfyNotification(
+                    url = fullUrl,
+                    title = "Test EWallet Relay",
+                    priority = "3",
+                    tags = "ewallet-relay,test",
+                    authorization = authHeader,
+                    message = "This is a test notification from the EWallet Relay App."
+                )
+                
+                if (response.isSuccessful) {
+                    insertLog("Test Ntfy Berhasil: Terkirim ke topic $ntfyTopic", "SUCCESS")
+                } else {
+                    val error = "Test Ntfy gagal: HTTP ${response.code()}"
+                    insertLog(error, "ERROR")
+                    ntfySuccess = false
+                    errorMessage = if (errorMessage.isEmpty()) error else "$errorMessage; $error"
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error sending test notification to ntfy", e)
+                insertLog("Test Ntfy error: ${e.message}", "ERROR")
+                ntfySuccess = false
+                errorMessage = if (errorMessage.isEmpty()) e.message ?: "Ntfy test error" else "$errorMessage; ${e.message}"
+            }
+        }
+        
+        return if (endpointSuccess && ntfySuccess) {
+            Result.success("Test berhasil")
+        } else {
+            Result.failure(Exception(errorMessage.ifEmpty { "Test gagal" }))
         }
     }
     

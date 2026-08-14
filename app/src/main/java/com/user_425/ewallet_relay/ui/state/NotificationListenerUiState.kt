@@ -14,13 +14,22 @@ data class NotificationListenerUiState(
     val isApiKeyVisible: Boolean = false,
     val validationErrors: ValidationErrors = ValidationErrors(),
     val showBatteryOptimizationDialog: Boolean = false,
-    val batteryOptimizationShown: Boolean = false
+    val batteryOptimizationShown: Boolean = false,
+    val ntfyEnabled: Boolean = false,
+    val ntfyUrl: String = "https://ntfy.sh",
+    val ntfyTopic: String = "",
+    val ntfyUseAuth: Boolean = false,
+    val ntfyToken: String = "",
+    val isNtfyTokenVisible: Boolean = false
 )
 
 data class ValidationErrors(
     val endpointUrl: String? = null,
     val apiKey: String? = null,
-    val filterPackages: String? = null
+    val filterPackages: String? = null,
+    val ntfyUrl: String? = null,
+    val ntfyTopic: String? = null,
+    val ntfyToken: String? = null
 )
 
 sealed class UiEvent {
@@ -38,4 +47,10 @@ sealed class UiEvent {
     object CopySettings : UiEvent()
     object DismissBatteryOptimizationDialog : UiEvent()
     object OpenBatteryOptimizationSettings : UiEvent()
+    data class UpdateNtfyEnabled(val enabled: Boolean) : UiEvent()
+    data class UpdateNtfyUrl(val url: String) : UiEvent()
+    data class UpdateNtfyTopic(val topic: String) : UiEvent()
+    data class UpdateNtfyUseAuth(val useAuth: Boolean) : UiEvent()
+    data class UpdateNtfyToken(val token: String) : UiEvent()
+    object ToggleNtfyTokenVisibility : UiEvent()
 }

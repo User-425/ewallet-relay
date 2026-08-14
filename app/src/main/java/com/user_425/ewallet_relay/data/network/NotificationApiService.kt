@@ -34,4 +34,14 @@ interface NotificationApiService {
         @Header("X-API-Key") apiKey: String? = null,
         @Body payload: String
     ): Response<Any>
+    
+    @POST
+    suspend fun sendNtfyNotification(
+        @Url url: String,
+        @Header("Title") title: String?,
+        @Header("Priority") priority: String? = "3",
+        @Header("Tags") tags: String? = null,
+        @Header("Authorization") authorization: String? = null,
+        @Body message: String
+    ): Response<Any>
 }

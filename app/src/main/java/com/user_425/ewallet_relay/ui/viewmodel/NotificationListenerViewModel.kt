@@ -69,6 +69,22 @@ class NotificationListenerViewModel @Inject constructor(
                 )
             }.collect()
         }
+        viewModelScope.launch {
+            combine(
+                userPreferencesRepository.ntfyEnabled,
+                userPreferencesRepository.ntfyUrl,
+                userPreferencesRepository.ntfyTopic,
+                userPreferencesRepository.ntfyUseAuth
+            ) { ntfyEnabled, ntfyUrl, ntfyTopic, ntfyUseAuth ->
+                _uiState.value = _uiState.value.copy(
+                    ntfyEnabled = ntfyEnabled,
+                    ntfyUrl = ntfyUrl,
+                    ntfyTopic = ntfyTopic,
+                    ntfyUseAuth = ntfyUseAuth,
+                    ntfyToken = encryptedPreferencesManager.getNtfyToken() ?: ""
+                )
+            }.collect()
+        }
     }
     
     private fun observeLogs() {
@@ -109,6 +125,12 @@ class NotificationListenerViewModel @Inject constructor(
             is UiEvent.CopySettings -> copySettings()
             is UiEvent.DismissBatteryOptimizationDialog -> dismissBatteryOptimizationDialog()
             is UiEvent.OpenBatteryOptimizationSettings -> openBatteryOptimizationSettings()
+            is UiEvent.UpdateNtfyEnabled -> updateNtfyEnabled(event.enabled)
+            is UiEvent.UpdateNtfyUrl -> updateNtfyUrl(event.url)
+            is UiEvent.UpdateNtfyTopic -> updateNtfyTopic(event.topic)
+            is UiEvent.UpdateNtfyUseAuth -> updateNtfyUseAuth(event.useAuth)
+            is UiEvent.UpdateNtfyToken -> updateNtfyToken(event.token)
+            is UiEvent.ToggleNtfyTokenVisibility -> toggleNtfyTokenVisibility()
         }
     }
     
@@ -161,6 +183,45 @@ class NotificationListenerViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(isApiKeyVisible = !_uiState.value.isApiKeyVisible)
     }
     
+    private fun updateNtfyEnabled(enabled: Boolean) {
+        _uiState.value = _uiState.value.copy(
+            ntfyEnabled = enabled,
+            validationErrors = _uiState.value.validationErrors.copy(ntfyTopic = null, ntfyUrl = null)
+        )
+    }
+    
+    private fun updateNtfyUrl(url: String) {
+        _uiState.value = _uiState.value.copy(
+            ntfyUrl = url,
+            validationErrors = _uiState.value.validationErrors.copy(ntfyUrl = null)
+        )
+    }
+    
+    private fun updateNtfyTopic(topic: String) {
+        _uiState.value = _uiState.value.copy(
+            ntfyTopic = topic,
+            validationErrors = _uiState.value.validationErrors.copy(ntfyTopic = null)
+        )
+    }
+    
+    private fun updateNtfyUseAuth(useAuth: Boolean) {
+        _uiState.value = _uiState.value.copy(
+            ntfyUseAuth = useAuth,
+            validationErrors = _uiState.value.validationErrors.copy(ntfyToken = null)
+        )
+    }
+    
+    private fun updateNtfyToken(token: String) {
+        _uiState.value = _uiState.value.copy(
+            ntfyToken = token,
+            validationErrors = _uiState.value.validationErrors.copy(ntfyToken = null)
+        )
+    }
+    
+    private fun toggleNtfyTokenVisibility() {
+        _uiState.value = _uiState.value.copy(isNtfyTokenVisible = !_uiState.value.isNtfyTokenVisible)
+    }
+    
     private fun saveSettings() {
         viewModelScope.launch {
             try {
@@ -184,6 +245,15 @@ class NotificationListenerViewModel @Inject constructor(
                 
                 encryptedPreferencesManager.saveApiKey(
                     if (currentState.apiKey.isBlank()) null else currentState.apiKey
+                )
+                
+                userPreferencesRepository.setNtfyEnabled(currentState.ntfyEnabled)
+                userPreferencesRepository.setNtfyUrl(currentState.ntfyUrl)
+                userPreferencesRepository.setNtfyTopic(currentState.ntfyTopic)
+                userPreferencesRepository.setNtfyUseAuth(currentState.ntfyUseAuth)
+                
+                encryptedPreferencesManager.saveNtfyToken(
+                    if (currentState.ntfyToken.isBlank()) null else currentState.ntfyToken
                 )
                 
                 // Start services if permission is granted
@@ -212,10 +282,28 @@ class NotificationListenerViewModel @Inject constructor(
         val currentState = _uiState.value
         var errors = ValidationErrors()
         
-        if (currentState.endpointUrl.isBlank()) {
-            errors = errors.copy(endpointUrl = "Endpoint URL wajib diisi")
-        } else if (!NotificationUtils.isValidUrl(currentState.endpointUrl)) {
-            errors = errors.copy(endpointUrl = "URL tidak valid")
+        if (currentState.endpointUrl.isNotBlank()) {
+            if (!NotificationUtils.isValidUrl(currentState.endpointUrl)) {
+                errors = errors.copy(endpointUrl = "URL tidak valid")
+            }
+        }
+        
+        if (currentState.ntfyEnabled) {
+            if (currentState.ntfyTopic.isBlank()) {
+                errors = errors.copy(ntfyTopic = "Topic ntfy wajib diisi jika ntfy aktif")
+            }
+            if (currentState.ntfyUrl.isBlank()) {
+                errors = errors.copy(ntfyUrl = "URL ntfy wajib diisi jika ntfy aktif")
+            } else if (!NotificationUtils.isValidUrl(currentState.ntfyUrl)) {
+                errors = errors.copy(ntfyUrl = "URL tidak valid")
+            }
+            if (currentState.ntfyUseAuth && currentState.ntfyToken.isBlank()) {
+                errors = errors.copy(ntfyToken = "Token ntfy wajib diisi jika autentikasi diaktifkan")
+            }
+        }
+        
+        if (currentState.endpointUrl.isBlank() && !currentState.ntfyEnabled) {
+            errors = errors.copy(endpointUrl = "Salah satu Endpoint URL atau ntfy harus diisi atau aktif")
         }
         
         if (!currentState.forwardAllApps && currentState.filterPackages.isBlank()) {
@@ -313,5 +401,6 @@ class NotificationListenerViewModel @Inject constructor(
 }
 
 private fun ValidationErrors.hasErrors(): Boolean {
-    return endpointUrl != null || apiKey != null || filterPackages != null
+    return endpointUrl != null || apiKey != null || filterPackages != null ||
+            ntfyUrl != null || ntfyTopic != null || ntfyToken != null
 }
