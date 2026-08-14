@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Notification Listener"
+rootProject.name = "EWallet Relay"
 include(":app")
  

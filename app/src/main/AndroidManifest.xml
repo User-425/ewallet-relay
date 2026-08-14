@@ -16,7 +16,7 @@
         tools:ignore="ProtectedPermissions" />
 
     <application
-        android:name="com.hiddencyber.notificationlistener.NotificationListenerApplication"
+        android:name="com.user_425.ewallet_relay.NotificationListenerApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -40,7 +40,7 @@
 
         <!-- Main Activity -->
         <activity
-            android:name="com.hiddencyber.notificationlistener.ui.MainActivity"
+            android:name="com.user_425.ewallet_relay.ui.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.NotificationListener">
             <intent-filter>
@@ -51,7 +51,7 @@
 
         <!-- Notification Listener Service -->
         <service
-            android:name="com.hiddencyber.notificationlistener.service.NotificationCaptureService"
+            android:name="com.user_425.ewallet_relay.service.NotificationCaptureService"
             android:exported="false"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
@@ -61,13 +61,13 @@
 
         <!-- Foreground Service -->
         <service
-            android:name="com.hiddencyber.notificationlistener.service.ForegroundService"
+            android:name="com.user_425.ewallet_relay.service.ForegroundService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
         <!-- Boot Completed Receiver -->
         <receiver
-            android:name="com.hiddencyber.notificationlistener.receiver.BootCompletedReceiver"
+            android:name="com.user_425.ewallet_relay.receiver.BootCompletedReceiver"
             android:enabled="true"
             android:exported="false">
             <intent-filter android:priority="1000">

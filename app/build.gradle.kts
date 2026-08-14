@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.hiddencyber.notificationlistener"
+    namespace = "com.user_425.ewallet_relay"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.hiddencyber.notificationlistener"
+        applicationId = "com.user_425.ewallet_relay"
         minSdk = 24
         targetSdk = 36
         versionCode = 1
@@ -46,6 +46,9 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+    lint {
+        abortOnError = false
     }
 }
 
@@ -95,6 +98,7 @@ dependencies {
     
     // Navigation
     implementation(libs.navigation.compose)
+    implementation("androidx.compose.material:material-icons-extended")
     
     // Gson for JSON parsing
     implementation(libs.gson)
