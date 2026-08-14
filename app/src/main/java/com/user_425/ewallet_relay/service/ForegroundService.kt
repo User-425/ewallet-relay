@@ -48,10 +48,10 @@ class ForegroundService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Notification Listener Service",
+                "EWallet Relay Service",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
-                description = "Notification for keeping notification listener service active"
+                description = "Notification for keeping EWallet Relay service active"
                 setShowBadge(false)
             }
             
@@ -71,8 +71,8 @@ class ForegroundService : Service() {
         )
         
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Notification Listener")
-            .setContentText("Notification Listener aktif")
+            .setContentTitle("EWallet Relay")
+            .setContentText("EWallet Relay aktif")
             .setSmallIcon(R.drawable.ic_notification) // We'll create this
             .setContentIntent(pendingIntent)
             .setOngoing(true)

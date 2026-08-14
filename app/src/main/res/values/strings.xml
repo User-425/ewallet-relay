@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Notification Listener</string>
+    <string name="app_name">EWallet Relay</string>
     <string name="notification_service_description">Captures and forwards notifications to configured API endpoint</string>
-    <string name="foreground_service_title">Notification Listener Active</string>
+    <string name="foreground_service_title">EWallet Relay Active</string>
     <string name="foreground_service_description">Monitoring notifications and syncing data</string>
     <string name="permission_required">Notification access permission required</string>
     <string name="open_settings">Open Settings</string>

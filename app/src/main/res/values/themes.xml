@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Base application theme. -->
-    <style name="Theme.NotificationListener" parent="android:ThemeOverlay.Material.Dark">
+    <style name="Theme.NotificationListener" parent="Theme.AppCompat.DayNight.NoActionBar">
         <!-- Primary brand color. -->
         <item name="android:colorPrimary">@color/md_theme_light_primary</item>
         <item name="android:colorPrimaryDark">@color/md_theme_light_primary</item>

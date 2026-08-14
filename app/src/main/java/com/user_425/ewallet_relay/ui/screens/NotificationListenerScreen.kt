@@ -22,6 +22,12 @@ import com.user_425.ewallet_relay.ui.state.ValidationErrors
 import com.user_425.ewallet_relay.ui.theme.NotificationListenerTheme
 import com.user_425.ewallet_relay.ui.viewmodel.NotificationListenerViewModel
 
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.NotificationsActive
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
@@ -182,10 +188,23 @@ fun NotificationListenerScreenContent(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = if (currentScreen == AppScreen.Dashboard) "EWallet Relay" else "Pengaturan Koneksi",
-                        style = MaterialTheme.typography.titleLarge
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.NotificationsActive,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Text(
+                            text = if (currentScreen == AppScreen.Dashboard) "EWallet Relay" else "Pengaturan",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
                 },
                 navigationIcon = {
                     if (currentScreen == AppScreen.Settings) {
