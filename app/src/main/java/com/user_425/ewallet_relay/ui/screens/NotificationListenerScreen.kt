@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.user_425.ewallet_relay.data.database.entity.NotificationLogEntity
+import com.user_425.ewallet_relay.data.model.PackageFilter
 import com.user_425.ewallet_relay.ui.components.DebugUtilities
 import com.user_425.ewallet_relay.ui.components.LogsSection
 import com.user_425.ewallet_relay.ui.components.PermissionStatusCard
@@ -65,7 +66,10 @@ fun NotificationListenerScreenPreviewGranted() {
                 isNotificationAccessGranted = true,
                 endpointUrl = "https://api.example.com/webhook",
                 apiKey = "sample-api-key",
-                filterPackages = "id.dana, com.whatsapp",
+                filterPackages = listOf(
+                    PackageFilter("id.dana", "Dana", ""),
+                    PackageFilter("com.whatsapp", "WhatsApp", "")
+                ),
                 forwardAllApps = false,
                 logs = listOf(
                     NotificationLogEntity(
@@ -103,7 +107,7 @@ fun NotificationListenerScreenPreviewDenied() {
                 isNotificationAccessGranted = false,
                 endpointUrl = "",
                 apiKey = "",
-                filterPackages = "",
+                filterPackages = emptyList(),
                 forwardAllApps = false,
                 logs = emptyList(),
                 isLoading = false,
@@ -128,7 +132,10 @@ fun NotificationListenerScreenPreviewDark() {
                 isNotificationAccessGranted = true,
                 endpointUrl = "https://api.example.com/webhook",
                 apiKey = "sample-api-key",
-                filterPackages = "id.dana, com.whatsapp",
+                filterPackages = listOf(
+                    PackageFilter("id.dana", "Dana", ""),
+                    PackageFilter("com.whatsapp", "WhatsApp", "")
+                ),
                 forwardAllApps = true,
                 logs = listOf(
                     NotificationLogEntity(

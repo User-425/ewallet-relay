@@ -13,6 +13,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.user_425.ewallet_relay.data.preferences.UserPreferencesRepository
 import com.user_425.ewallet_relay.data.repository.NotificationRepository
+import com.user_425.ewallet_relay.data.model.PackageFilter
 import com.user_425.ewallet_relay.data.security.EncryptedPreferencesManager
 import com.user_425.ewallet_relay.service.ForegroundService
 import com.user_425.ewallet_relay.service.NotificationCaptureService
@@ -54,7 +55,7 @@ class NotificationListenerViewModel @Inject constructor(
         viewModelScope.launch {
             combine(
                 userPreferencesRepository.endpointUrl,
-                userPreferencesRepository.filterPackages,
+                userPreferencesRepository.filterPackagesList,
                 userPreferencesRepository.forwardAllApps,
                 userPreferencesRepository.serviceEnabled,
                 userPreferencesRepository.batteryOptimizationShown
@@ -115,7 +116,9 @@ class NotificationListenerViewModel @Inject constructor(
             is UiEvent.OpenNotificationSettings -> openNotificationSettings()
             is UiEvent.UpdateEndpointUrl -> updateEndpointUrl(event.url)
             is UiEvent.UpdateApiKey -> updateApiKey(event.key)
-            is UiEvent.UpdateFilterPackages -> updateFilterPackages(event.packages)
+            is UiEvent.AddFilterPackage -> addFilterPackage(event.filter)
+            is UiEvent.RemoveFilterPackage -> removeFilterPackage(event.packageName)
+            is UiEvent.UpdateFilterPackage -> updateFilterPackage(event.filter)
             is UiEvent.UpdateForwardAllApps -> updateForwardAllApps(event.enabled)
             is UiEvent.ToggleApiKeyVisibility -> toggleApiKeyVisibility()
             is UiEvent.SaveSettings -> saveSettings()
@@ -168,9 +171,30 @@ class NotificationListenerViewModel @Inject constructor(
         )
     }
     
-    private fun updateFilterPackages(packages: String) {
+    private fun addFilterPackage(filter: PackageFilter) {
+        val currentList = _uiState.value.filterPackages
+        if (currentList.none { it.packageName.equals(filter.packageName, ignoreCase = true) }) {
+            _uiState.value = _uiState.value.copy(
+                filterPackages = currentList + filter,
+                validationErrors = _uiState.value.validationErrors.copy(filterPackages = null)
+            )
+        }
+    }
+    
+    private fun removeFilterPackage(packageName: String) {
+        val currentList = _uiState.value.filterPackages
         _uiState.value = _uiState.value.copy(
-            filterPackages = packages,
+            filterPackages = currentList.filter { !it.packageName.equals(packageName, ignoreCase = true) },
+            validationErrors = _uiState.value.validationErrors.copy(filterPackages = null)
+        )
+    }
+    
+    private fun updateFilterPackage(filter: PackageFilter) {
+        val currentList = _uiState.value.filterPackages
+        _uiState.value = _uiState.value.copy(
+            filterPackages = currentList.map {
+                if (it.packageName.equals(filter.packageName, ignoreCase = true)) filter else it
+            },
             validationErrors = _uiState.value.validationErrors.copy(filterPackages = null)
         )
     }
@@ -239,7 +263,7 @@ class NotificationListenerViewModel @Inject constructor(
                 // Save settings
                 val currentState = _uiState.value
                 userPreferencesRepository.setEndpointUrl(currentState.endpointUrl)
-                userPreferencesRepository.setFilterPackages(currentState.filterPackages)
+                userPreferencesRepository.setFilterPackagesList(currentState.filterPackages)
                 userPreferencesRepository.setForwardAllApps(currentState.forwardAllApps)
                 userPreferencesRepository.setServiceEnabled(true)
                 
@@ -306,7 +330,7 @@ class NotificationListenerViewModel @Inject constructor(
             errors = errors.copy(endpointUrl = "Salah satu Endpoint URL atau ntfy harus diisi atau aktif")
         }
         
-        if (!currentState.forwardAllApps && currentState.filterPackages.isBlank()) {
+        if (!currentState.forwardAllApps && currentState.filterPackages.isEmpty()) {
             errors = errors.copy(filterPackages = "Filter package wajib diisi")
         }
         
@@ -354,7 +378,8 @@ class NotificationListenerViewModel @Inject constructor(
     private fun copySettings() {
         try {
             val currentState = _uiState.value
-            val settingsText = "Endpoint: ${currentState.endpointUrl}\nPackages: ${currentState.filterPackages}"
+            val packagesStr = currentState.filterPackages.joinToString(", ") { "${it.appName} (${it.packageName})" }
+            val settingsText = "Endpoint: ${currentState.endpointUrl}\nPackages: $packagesStr"
             
             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val clip = ClipData.newPlainText("Settings", settingsText)

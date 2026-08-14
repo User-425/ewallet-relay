@@ -10,6 +10,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
 import com.user_425.ewallet_relay.data.model.NotificationPayload
+import com.user_425.ewallet_relay.data.model.PackageFilter
 import com.user_425.ewallet_relay.data.repository.NotificationRepository
 import com.user_425.ewallet_relay.data.preferences.UserPreferencesRepository
 import com.user_425.ewallet_relay.utils.NotificationUtils
@@ -114,11 +115,16 @@ class NotificationCaptureService : NotificationListenerService() {
         val notification = sbn.notification
         val extras = notification.extras
         
+        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
+        val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
+        val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
+        
         // Check if we should forward this notification
-        val shouldForward = shouldForwardNotification(packageName)
+        val shouldForward = shouldForwardNotification(packageName, title, text, subText, bigText)
         
         if (!shouldForward) {
-            Log.d(TAG, "Skipping notification from $packageName (not in filter list)")
+            Log.d(TAG, "Skipping notification from $packageName (not in filter list or does not match keywords)")
             return
         }
         
@@ -131,10 +137,6 @@ class NotificationCaptureService : NotificationListenerService() {
         
         // Extract notification data
         val appName = getAppName(packageName)
-        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
-        val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString()
-        val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString()
-        val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString()
         val channelId = notification.channelId
         val notificationId = sbn.id
         
@@ -191,23 +193,44 @@ class NotificationCaptureService : NotificationListenerService() {
         return false
     }
     
-    private suspend fun shouldForwardNotification(packageName: String): Boolean {
+    private suspend fun shouldForwardNotification(
+        packageName: String,
+        title: String?,
+        text: String?,
+        subText: String?,
+        bigText: String?
+    ): Boolean {
         val forwardAll = userPreferencesRepository.getForwardAllAppsSync()
         
         if (forwardAll) {
             return true
         }
         
-        val filterPackages = userPreferencesRepository.getFilterPackagesSync()
-        if (filterPackages.isBlank()) {
+        val filters = userPreferencesRepository.getFilterPackagesListSync()
+        val matchingFilter = filters.find { it.packageName.equals(packageName, ignoreCase = true) } ?: return false
+        
+        if (!matchingFilter.enabled) {
             return false
         }
         
-        val packageList = filterPackages.split(",")
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
+        val containWords = matchingFilter.containWords.trim()
+        if (containWords.isEmpty()) {
+            return true
+        }
         
-        return packageList.contains(packageName)
+        val keywords = containWords.split(",")
+            .map { it.trim().lowercase() }
+            .filter { it.isNotEmpty() }
+            
+        if (keywords.isEmpty()) {
+            return true
+        }
+        
+        val content = listOfNotNull(title, text, subText, bigText)
+            .joinToString(" ")
+            .lowercase()
+            
+        return keywords.any { content.contains(it) }
     }
     
     private suspend fun getOrCreateDeviceId(): String {

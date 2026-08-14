@@ -1,13 +1,14 @@
 package com.user_425.ewallet_relay.ui.state
 
 import com.user_425.ewallet_relay.data.database.entity.NotificationLogEntity
+import com.user_425.ewallet_relay.data.model.PackageFilter
 
 data class NotificationListenerUiState(
     val isLoading: Boolean = false,
     val isNotificationAccessGranted: Boolean = false,
     val endpointUrl: String = "",
     val apiKey: String = "",
-    val filterPackages: String = "",
+    val filterPackages: List<PackageFilter> = emptyList(),
     val forwardAllApps: Boolean = false,
     val serviceEnabled: Boolean = false,
     val logs: List<NotificationLogEntity> = emptyList(),
@@ -37,7 +38,9 @@ sealed class UiEvent {
     object OpenNotificationSettings : UiEvent()
     data class UpdateEndpointUrl(val url: String) : UiEvent()
     data class UpdateApiKey(val key: String) : UiEvent()
-    data class UpdateFilterPackages(val packages: String) : UiEvent()
+    data class AddFilterPackage(val filter: PackageFilter) : UiEvent()
+    data class RemoveFilterPackage(val packageName: String) : UiEvent()
+    data class UpdateFilterPackage(val filter: PackageFilter) : UiEvent()
     data class UpdateForwardAllApps(val enabled: Boolean) : UiEvent()
     object ToggleApiKeyVisibility : UiEvent()
     object SaveSettings : UiEvent()

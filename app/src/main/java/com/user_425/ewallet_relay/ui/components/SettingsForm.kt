@@ -12,6 +12,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.draw.alpha
 import com.user_425.ewallet_relay.ui.state.NotificationListenerUiState
 import com.user_425.ewallet_relay.ui.state.UiEvent
 import com.user_425.ewallet_relay.ui.state.ValidationErrors
@@ -23,6 +24,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import com.user_425.ewallet_relay.data.model.PackageFilter
 
 @Composable
 fun SettingsForm(
@@ -30,6 +40,34 @@ fun SettingsForm(
     onEvent: (UiEvent) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showDialog by remember { mutableStateOf(false) }
+    var editingFilter by remember { mutableStateOf<PackageFilter?>(null) }
+    var tempAppName by remember { mutableStateOf("") }
+    var tempPackageName by remember { mutableStateOf("") }
+    var tempContainWords by remember { mutableStateOf("") }
+    var tempEnabled by remember { mutableStateOf(true) }
+    var dialogError by remember { mutableStateOf<String?>(null) }
+
+    val onAddClicked = {
+        editingFilter = null
+        tempAppName = ""
+        tempPackageName = ""
+        tempContainWords = ""
+        tempEnabled = true
+        dialogError = null
+        showDialog = true
+    }
+
+    val onEditClicked = { filter: PackageFilter ->
+        editingFilter = filter
+        tempAppName = filter.appName
+        tempPackageName = filter.packageName
+        tempContainWords = filter.containWords
+        tempEnabled = filter.enabled
+        dialogError = null
+        showDialog = true
+    }
+
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
@@ -206,18 +244,176 @@ fun SettingsForm(
             
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             
-            // Filter Packages
-            OutlinedTextField(
-                value = uiState.filterPackages,
-                onValueChange = { onEvent(UiEvent.UpdateFilterPackages(it)) },
-                label = { Text("Filter Package (Pemisah Koma)") },
-                placeholder = { Text("id.dana, com.whatsapp") },
-                isError = uiState.validationErrors.filterPackages != null,
-                supportingText = uiState.validationErrors.filterPackages?.let { { Text(text = it, style = MaterialTheme.typography.bodyMedium) } },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                maxLines = 3
-            )
+            // Filter Packages Header
+            Column {
+                Text(
+                    text = "Aplikasi yang Difilter",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "Hanya notifikasi dari aplikasi di bawah ini yang akan diteruskan.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (uiState.validationErrors.filterPackages != null) {
+                Text(
+                    text = uiState.validationErrors.filterPackages,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            // Package List
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                if (uiState.filterPackages.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(
+                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .padding(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Belum ada aplikasi yang difilter.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    uiState.filterPackages.forEach { filter ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .alpha(if (filter.enabled) 1f else 0.6f),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                            ),
+                            border = BorderStroke(
+                                width = 0.5.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                // Lead Icon: Letter avatar
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .background(
+                                            color = MaterialTheme.colorScheme.primaryContainer,
+                                            shape = RoundedCornerShape(8.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    val letter = filter.appName.firstOrNull()?.uppercase() ?: "A"
+                                    Text(
+                                        text = letter,
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.width(12.dp))
+
+                                // Text contents
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = filter.appName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = filter.packageName,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    if (filter.containWords.isNotBlank()) {
+                                        Row(
+                                            modifier = Modifier.padding(top = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.FilterList,
+                                                contentDescription = "Kata Kunci",
+                                                modifier = Modifier.size(12.dp),
+                                                tint = MaterialTheme.colorScheme.primary
+                                            )
+                                            Text(
+                                                text = "Mengandung kata: ${filter.containWords}",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.primary,
+                                                fontWeight = FontWeight.Medium
+                                            )
+                                        }
+                                    }
+                                }
+
+                                // Actions
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Switch(
+                                        checked = filter.enabled,
+                                        onCheckedChange = { isChecked ->
+                                            onEvent(UiEvent.UpdateFilterPackage(filter.copy(enabled = isChecked)))
+                                        },
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                    IconButton(onClick = { onEditClicked(filter) }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
+                                    IconButton(onClick = { onEvent(UiEvent.RemoveFilterPackage(filter.packageName)) }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Hapus",
+                                            tint = MaterialTheme.colorScheme.error
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Add button
+                OutlinedButton(
+                    onClick = onAddClicked,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+                    contentPadding = PaddingValues(12.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Tambah Aplikasi",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Tambah Aplikasi", style = MaterialTheme.typography.bodyMedium)
+                }
+            }
             
             // Forward all apps toggle
             Row(
@@ -273,6 +469,116 @@ fun SettingsForm(
             }
         }
     }
+
+    if (showDialog) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            title = {
+                Text(
+                    text = if (editingFilter == null) "Tambah Filter Aplikasi" else "Edit Filter Aplikasi",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (dialogError != null) {
+                        Text(
+                            text = dialogError!!,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    OutlinedTextField(
+                        value = tempAppName,
+                        onValueChange = { tempAppName = it },
+                        label = { Text("Nama Aplikasi (e.g. GoPay)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = tempPackageName,
+                        onValueChange = { tempPackageName = it },
+                        label = { Text("Package Name (e.g. com.gojek.gopay)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        enabled = editingFilter == null
+                    )
+
+                    OutlinedTextField(
+                        value = tempContainWords,
+                        onValueChange = { tempContainWords = it },
+                        label = { Text("Filter Detail Kata (Opsional, pemisah koma)") },
+                        placeholder = { Text("e.g. transfer, dana masuk") },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp),
+                        supportingText = { Text("Kosongkan untuk meneruskan semua notifikasi dari aplikasi ini") }
+                    )
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Aktifkan Filter Aplikasi",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Switch(
+                            checked = tempEnabled,
+                            onCheckedChange = { tempEnabled = it }
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (tempAppName.isBlank() || tempPackageName.isBlank()) {
+                            dialogError = "Nama dan Package Name wajib diisi"
+                            return@TextButton
+                        }
+                        if (!tempPackageName.contains(".")) {
+                            dialogError = "Format Package Name tidak valid"
+                            return@TextButton
+                        }
+                        
+                        val newFilter = PackageFilter(
+                            packageName = tempPackageName.trim(),
+                            appName = tempAppName.trim(),
+                            containWords = tempContainWords.trim(),
+                            enabled = tempEnabled
+                        )
+                        
+                        if (editingFilter == null) {
+                            onEvent(UiEvent.AddFilterPackage(newFilter))
+                        } else {
+                            onEvent(UiEvent.UpdateFilterPackage(newFilter))
+                        }
+                        showDialog = false
+                    }
+                ) {
+                    Text("Simpan", fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Batal")
+                }
+            },
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
 }
 
 @Preview(showBackground = true, name = "Settings Form - Empty")
@@ -283,7 +589,7 @@ fun SettingsFormPreviewEmpty() {
             uiState = NotificationListenerUiState(
                 endpointUrl = "",
                 apiKey = "",
-                filterPackages = "",
+                filterPackages = emptyList(),
                 forwardAllApps = false,
                 isLoading = false,
                 validationErrors = ValidationErrors(),
@@ -302,7 +608,10 @@ fun SettingsFormPreviewFilled() {
             uiState = NotificationListenerUiState(
                 endpointUrl = "https://api.example.com/webhook",
                 apiKey = "sample-api-key-123456",
-                filterPackages = "id.dana, com.whatsapp, com.tokopedia",
+                filterPackages = listOf(
+                    PackageFilter("id.dana", "Dana", ""),
+                    PackageFilter("com.gojek.gopay", "GoPay", "transfer, sukses")
+                ),
                 forwardAllApps = true,
                 isLoading = false,
                 validationErrors = ValidationErrors(),
@@ -321,7 +630,9 @@ fun SettingsFormPreviewLoading() {
             uiState = NotificationListenerUiState(
                 endpointUrl = "https://api.example.com/webhook",
                 apiKey = "sample-api-key",
-                filterPackages = "id.dana",
+                filterPackages = listOf(
+                    PackageFilter("id.dana", "Dana", "")
+                ),
                 forwardAllApps = false,
                 isLoading = true,
                 validationErrors = ValidationErrors(),
@@ -340,7 +651,7 @@ fun SettingsFormPreviewErrors() {
             uiState = NotificationListenerUiState(
                 endpointUrl = "invalid-url",
                 apiKey = "",
-                filterPackages = "invalid package name",
+                filterPackages = emptyList(),
                 forwardAllApps = false,
                 isLoading = false,
                 validationErrors = ValidationErrors(

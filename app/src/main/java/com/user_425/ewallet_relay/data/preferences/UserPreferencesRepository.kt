@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
+import com.user_425.ewallet_relay.data.model.PackageFilter
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "notification_listener_preferences")
 
@@ -36,8 +39,54 @@ class UserPreferencesRepository @Inject constructor(
         preferences[PreferencesKeys.ENDPOINT_URL] ?: ""
     }
     
+    private val gson = Gson()
+    
+    private val defaultFilters = listOf(
+        PackageFilter("com.gojek.gopay", "GoPay"),
+        PackageFilter("com.gojek.gopaymerchant", "GoPay Merchant"),
+        PackageFilter("id.dana", "Dana"),
+        PackageFilter("com.shopeepay.id", "ShopeePay"),
+        PackageFilter("ovo.id", "OVO"),
+        PackageFilter("com.telkom.mwallet", "LinkAja")
+    )
+    
+    private fun getDefaultFilterPackagesJson(): String {
+        return gson.toJson(defaultFilters)
+    }
+
+    fun parseFilterPackages(raw: String): List<PackageFilter> {
+        if (raw.isBlank()) {
+            return defaultFilters
+        }
+        if (raw.trim().startsWith("[")) {
+            return try {
+                val type = object : TypeToken<List<PackageFilter>>() {}.type
+                gson.fromJson<List<PackageFilter>>(raw, type) ?: defaultFilters
+            } catch (e: Exception) {
+                defaultFilters
+            }
+        } else {
+            // Migration legacy comma-separated packages
+            return raw.split(",")
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .map { pkg ->
+                    val defaultMatch = defaultFilters.find { it.packageName.equals(pkg, ignoreCase = true) }
+                    if (defaultMatch != null) {
+                        defaultMatch
+                    } else {
+                        PackageFilter(packageName = pkg, appName = pkg, containWords = "")
+                    }
+                }
+        }
+    }
+
     val filterPackages: Flow<String> = context.dataStore.data.map { preferences ->
-        preferences[PreferencesKeys.FILTER_PACKAGES] ?: ""
+        preferences[PreferencesKeys.FILTER_PACKAGES] ?: getDefaultFilterPackagesJson()
+    }
+    
+    val filterPackagesList: Flow<List<PackageFilter>> = filterPackages.map { raw ->
+        if (raw.isBlank()) defaultFilters else parseFilterPackages(raw)
     }
     
     val forwardAllApps: Flow<Boolean> = context.dataStore.data.map { preferences ->
@@ -86,6 +135,10 @@ class UserPreferencesRepository @Inject constructor(
         context.dataStore.edit { preferences ->
             preferences[PreferencesKeys.FILTER_PACKAGES] = packages
         }
+    }
+    
+    suspend fun setFilterPackagesList(filters: List<PackageFilter>) {
+        setFilterPackages(gson.toJson(filters))
     }
     
     suspend fun setForwardAllApps(enabled: Boolean) {
@@ -148,6 +201,10 @@ class UserPreferencesRepository @Inject constructor(
     
     suspend fun getFilterPackagesSync(): String {
         return filterPackages.first()
+    }
+    
+    suspend fun getFilterPackagesListSync(): List<PackageFilter> {
+        return filterPackagesList.first()
     }
     
     suspend fun getForwardAllAppsSync(): Boolean {
