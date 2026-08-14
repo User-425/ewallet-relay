@@ -21,3 +21,5 @@ backend/.wrangler/
 backend/wrangler.toml.backup
 backend/wrangler.toml
 wrangler.toml
+
+.kotlin
