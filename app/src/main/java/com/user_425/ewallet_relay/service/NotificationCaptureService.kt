@@ -35,7 +35,7 @@ class NotificationCaptureService : NotificationListenerService() {
                 val componentName = ComponentName(packageName, NotificationCaptureService::class.java.name)
                 val flattenedComponentName = componentName.flattenToString()
                 
-                // Get enabled EWaller Relays from system settings
+                // Get enabled EWallet Relays from system settings
                 val enabledNotificationListeners = Settings.Secure.getString(
                     context.contentResolver,
                     "enabled_notification_listeners"
@@ -68,17 +68,17 @@ class NotificationCaptureService : NotificationListenerService() {
     
     override fun onListenerConnected() {
         super.onListenerConnected()
-        Log.d(TAG, "EWaller Relay connected")
+        Log.d(TAG, "EWallet Relay connected")
         serviceScope.launch {
-            notificationRepository.insertLog("EWaller Relay terhubung", "INFO")
+            notificationRepository.insertLog("EWallet Relay terhubung", "INFO")
         }
     }
     
     override fun onListenerDisconnected() {
         super.onListenerDisconnected()
-        Log.d(TAG, "EWaller Relay disconnected")
+        Log.d(TAG, "EWallet Relay disconnected")
         serviceScope.launch {
-            notificationRepository.insertLog("EWaller Relay terputus", "INFO")
+            notificationRepository.insertLog("EWallet Relay terputus", "INFO")
         }
         
         // Try to reconnect
