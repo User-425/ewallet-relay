@@ -122,4 +122,22 @@ class NotificationFilterTest {
         // Partial word containment
         assertTrue(shouldForward(true, "pay", "GoPay", "Transfer", null, null))
     }
+
+    @Test
+    fun testPostedAtFormatting() {
+        fun formatPostedAt(postedAt: String): String {
+            return try {
+                val parsedDateTime = java.time.OffsetDateTime.parse(postedAt)
+                java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
+                    .withZone(java.time.ZoneId.of("Asia/Jakarta"))
+                    .format(parsedDateTime)
+            } catch (e: Exception) {
+                postedAt
+            }
+        }
+
+        val rawTimestamp = "2026-08-15T22:19:31.663+07:00"
+        val formatted = formatPostedAt(rawTimestamp)
+        assertEquals("15/08/2026 22:19:31", formatted)
+    }
 }

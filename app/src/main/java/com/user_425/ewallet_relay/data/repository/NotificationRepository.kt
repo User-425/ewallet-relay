@@ -15,7 +15,10 @@ import com.user_425.ewallet_relay.utils.NetworkUtils
 import com.google.gson.Gson
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.time.Instant
+import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
@@ -34,6 +37,24 @@ class NotificationRepository @Inject constructor(
     
     companion object {
         private const val TAG = "NotificationRepository"
+    }
+
+    internal fun formatPostedAt(postedAt: String): String {
+        return try {
+            val parsedDateTime = OffsetDateTime.parse(postedAt)
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
+                .withZone(ZoneId.systemDefault())
+                .format(parsedDateTime)
+        } catch (e: Exception) {
+            try {
+                val instant = Instant.parse(postedAt)
+                DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss")
+                    .withZone(ZoneId.systemDefault())
+                    .format(instant)
+            } catch (e2: Exception) {
+                postedAt
+            }
+        }
     }
     
     fun getAllLogs(): Flow<List<NotificationLogEntity>> = notificationLogDao.getAllLogs()
@@ -120,13 +141,16 @@ class NotificationRepository @Inject constructor(
                     val fullUrl = "${ntfyUrl.trimEnd('/')}/${ntfyTopic.trimStart('/')}"
                     val authHeader = if (ntfyUseAuth && !ntfyToken.isNullOrBlank()) "Bearer ${ntfyToken.trim()}" else null
                     
+                    val formattedTime = formatPostedAt(payload.postedAt)
                     val ntfyMessage = buildString {
                         append("Aplikasi: ${payload.appName}\n")
                         if (!payload.title.isNullOrEmpty()) append("Judul: ${payload.title}\n")
                         if (!payload.text.isNullOrEmpty()) append("Pesan: ${payload.text}\n")
                         if (!payload.amountDetected.isNullOrEmpty()) append("Nominal: ${payload.amountDetected}\n")
-                        append("Waktu: ${payload.postedAt}")
+                        append("Waktu: $formattedTime")
                     }
+                    
+                    val requestBody = ntfyMessage.toRequestBody("text/plain; charset=utf-8".toMediaTypeOrNull())
                     
                     val response = apiService.sendNtfyNotification(
                         url = fullUrl,
@@ -134,7 +158,7 @@ class NotificationRepository @Inject constructor(
                         priority = "3",
                         tags = "ewallet-relay",
                         authorization = authHeader,
-                        message = ntfyMessage
+                        message = requestBody
                     )
                     
                     if (response.isSuccessful) {
@@ -213,6 +237,8 @@ class NotificationRepository @Inject constructor(
             try {
                 val fullUrl = "${ntfyUrl.trimEnd('/')}/${ntfyTopic.trimStart('/')}"
                 val authHeader = if (ntfyUseAuth && !ntfyToken.isNullOrBlank()) "Bearer ${ntfyToken.trim()}" else null
+                val testMessage = "This is a test notification from the EWallet Relay App."
+                val requestBody = testMessage.toRequestBody("text/plain; charset=utf-8".toMediaTypeOrNull())
                 
                 val response = apiService.sendNtfyNotification(
                     url = fullUrl,
@@ -220,7 +246,7 @@ class NotificationRepository @Inject constructor(
                     priority = "3",
                     tags = "ewallet-relay,test",
                     authorization = authHeader,
-                    message = "This is a test notification from the EWallet Relay App."
+                    message = requestBody
                 )
                 
                 if (response.isSuccessful) {

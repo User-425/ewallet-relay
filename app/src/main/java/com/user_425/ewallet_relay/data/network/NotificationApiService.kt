@@ -3,6 +3,7 @@ package com.user_425.ewallet_relay.data.network
 import com.user_425.ewallet_relay.data.model.ApiResponse
 import com.user_425.ewallet_relay.data.model.NotificationPayload
 import com.user_425.ewallet_relay.data.model.TestPayload
+import okhttp3.RequestBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.Header
@@ -42,6 +43,6 @@ interface NotificationApiService {
         @Header("Priority") priority: String? = "3",
         @Header("Tags") tags: String? = null,
         @Header("Authorization") authorization: String? = null,
-        @Body message: String
+        @Body message: RequestBody
     ): Response<Any>
 }
