@@ -12,7 +12,6 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.draw.alpha
 import com.user_425.ewallet_relay.ui.state.NotificationListenerUiState
 import com.user_425.ewallet_relay.ui.state.UiEvent
 import com.user_425.ewallet_relay.ui.state.ValidationErrors
@@ -27,7 +26,9 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +48,9 @@ fun SettingsForm(
     var tempContainWords by remember { mutableStateOf("") }
     var tempEnabled by remember { mutableStateOf(true) }
     var dialogError by remember { mutableStateOf<String?>(null) }
+    // Collapsed by default so Save stays reachable; auto-opens when list is empty
+    // (drawer is only worth collapsing when there's something to hide)
+    var filterSectionExpanded by remember { mutableStateOf(uiState.filterPackages.isEmpty()) }
 
     val onAddClicked = {
         editingFilter = null
@@ -243,175 +247,211 @@ fun SettingsForm(
             }
             
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-            
-            // Filter Packages Header
-            Column {
-                Text(
-                    text = "Aplikasi yang Difilter",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Hanya notifikasi dari aplikasi di bawah ini yang akan diteruskan.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
 
-            if (uiState.validationErrors.filterPackages != null) {
-                Text(
-                    text = uiState.validationErrors.filterPackages,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-
-            // Package List
-            Column(
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+            // Filter Packages — collapsible accordion so Save stays reachable with many filters
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
             ) {
-                if (uiState.filterPackages.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .padding(20.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                // Tappable header row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { filterSectionExpanded = !filterSectionExpanded }
+                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Belum ada aplikasi yang difilter.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "Aplikasi yang Difilter",
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.SemiBold,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
-                    }
-                } else {
-                    uiState.filterPackages.forEach { filter ->
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .alpha(if (filter.enabled) 1f else 0.6f),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                            ),
-                            border = BorderStroke(
-                                width = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outlineVariant
+                        if (!filterSectionExpanded) {
+                            val count = uiState.filterPackages.size
+                            val activeCount = uiState.filterPackages.count { it.enabled }
+                            Text(
+                                text = if (count == 0) "Belum ada aplikasi"
+                                       else "$activeCount aktif dari $count aplikasi",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
-                        ) {
-                            Row(
+                        }
+                    }
+                    Icon(
+                        imageVector = if (filterSectionExpanded) Icons.Default.KeyboardArrowUp
+                                      else Icons.Default.KeyboardArrowDown,
+                        contentDescription = if (filterSectionExpanded) "Tutup" else "Buka",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                if (filterSectionExpanded) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        if (uiState.validationErrors.filterPackages != null) {
+                            Text(
+                                text = uiState.validationErrors.filterPackages,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+
+                        if (uiState.filterPackages.isEmpty()) {
+                            Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                    .background(
+                                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                                        shape = RoundedCornerShape(12.dp)
+                                    )
+                                    .padding(20.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                // Lead Icon: Letter avatar
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(
-                                            color = MaterialTheme.colorScheme.primaryContainer,
-                                            shape = RoundedCornerShape(8.dp)
-                                        ),
-                                    contentAlignment = Alignment.Center
+                                Text(
+                                    text = "Belum ada aplikasi yang difilter.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        } else {
+                            uiState.filterPackages.forEach { filter ->
+                                val borderAccentColor = if (filter.enabled)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.outlineVariant
+
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = CardDefaults.cardColors(
+                                        containerColor = MaterialTheme.colorScheme.surface
+                                    ),
+                                    border = BorderStroke(
+                                        width = 1.dp,
+                                        color = MaterialTheme.colorScheme.outlineVariant
+                                    )
                                 ) {
-                                    val letter = filter.appName.firstOrNull()?.uppercase() ?: "A"
-                                    Text(
-                                        text = letter,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-
-                                Spacer(modifier = Modifier.width(12.dp))
-
-                                // Text contents
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = filter.appName,
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = filter.packageName,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    if (filter.containWords.isNotBlank()) {
-                                        Row(
-                                            modifier = Modifier.padding(top = 4.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    Row(modifier = Modifier.fillMaxWidth()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(4.dp)
+                                                .fillMaxHeight()
+                                                .background(borderAccentColor)
+                                        )
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .padding(horizontal = 12.dp, vertical = 12.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
-                                            Icon(
-                                                imageVector = Icons.Default.FilterList,
-                                                contentDescription = "Kata Kunci",
-                                                modifier = Modifier.size(12.dp),
-                                                tint = MaterialTheme.colorScheme.primary
-                                            )
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                Text(
+                                                    text = filter.appName,
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                    modifier = Modifier.weight(1f)
+                                                )
+                                                Switch(
+                                                    checked = filter.enabled,
+                                                    onCheckedChange = { isChecked ->
+                                                        onEvent(UiEvent.UpdateFilterPackage(filter.copy(enabled = isChecked)))
+                                                    }
+                                                )
+                                            }
                                             Text(
-                                                text = "Mengandung kata: ${filter.containWords}",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = MaterialTheme.colorScheme.primary,
-                                                fontWeight = FontWeight.Medium
+                                                text = filter.packageName,
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                                ),
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
                                             )
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.SpaceBetween
+                                            ) {
+                                                if (filter.containWords.isNotBlank()) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .background(
+                                                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                                                shape = RoundedCornerShape(6.dp)
+                                                            )
+                                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = "kata kunci: ${filter.containWords}",
+                                                            style = MaterialTheme.typography.labelSmall,
+                                                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                            fontWeight = FontWeight.Medium
+                                                        )
+                                                    }
+                                                } else {
+                                                    Spacer(modifier = Modifier.weight(1f))
+                                                }
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    IconButton(
+                                                        onClick = { onEditClicked(filter) },
+                                                        modifier = Modifier.size(36.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Edit,
+                                                            contentDescription = "Edit",
+                                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                    }
+                                                    IconButton(
+                                                        onClick = { onEvent(UiEvent.RemoveFilterPackage(filter.packageName)) },
+                                                        modifier = Modifier.size(36.dp)
+                                                    ) {
+                                                        Icon(
+                                                            imageVector = Icons.Default.Delete,
+                                                            contentDescription = "Hapus",
+                                                            tint = MaterialTheme.colorScheme.error,
+                                                            modifier = Modifier.size(18.dp)
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
-                                    }
-                                }
-
-                                // Actions
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Switch(
-                                        checked = filter.enabled,
-                                        onCheckedChange = { isChecked ->
-                                            onEvent(UiEvent.UpdateFilterPackage(filter.copy(enabled = isChecked)))
-                                        },
-                                        modifier = Modifier.padding(end = 8.dp)
-                                    )
-                                    IconButton(onClick = { onEditClicked(filter) }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Edit,
-                                            contentDescription = "Edit",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
-                                    IconButton(onClick = { onEvent(UiEvent.RemoveFilterPackage(filter.packageName)) }) {
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Hapus",
-                                            tint = MaterialTheme.colorScheme.error
-                                        )
                                     }
                                 }
                             }
                         }
-                    }
-                }
 
-                // Add button
-                OutlinedButton(
-                    onClick = onAddClicked,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-                    contentPadding = PaddingValues(12.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Tambah Aplikasi",
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Tambah Aplikasi", style = MaterialTheme.typography.bodyMedium)
+                        FilledTonalButton(
+                            onClick = onAddClicked,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 44.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Add,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Tambah Aplikasi", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
                 }
             }
             
