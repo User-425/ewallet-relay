@@ -21,7 +21,8 @@ data class NotificationListenerUiState(
     val ntfyTopic: String = "",
     val ntfyUseAuth: Boolean = false,
     val ntfyToken: String = "",
-    val isNtfyTokenVisible: Boolean = false
+    val isNtfyTokenVisible: Boolean = false,
+    val showSaveSuccessDialog: Boolean = false
 )
 
 data class ValidationErrors(
@@ -44,6 +45,7 @@ sealed class UiEvent {
     data class UpdateForwardAllApps(val enabled: Boolean) : UiEvent()
     object ToggleApiKeyVisibility : UiEvent()
     object SaveSettings : UiEvent()
+    object DismissSaveSuccessDialog : UiEvent()
     object ClearLogs : UiEvent()
     object ShareLogs : UiEvent()
     object TestSend : UiEvent()

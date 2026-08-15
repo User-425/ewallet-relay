@@ -33,6 +33,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
 
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.foundation.shape.RoundedCornerShape
+
 enum class AppScreen {
     Dashboard,
     Settings
@@ -166,6 +169,37 @@ fun NotificationListenerScreenContent(
     onNavigate: (AppScreen) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // Settings saved success dialog
+    if (uiState.showSaveSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { onEvent(UiEvent.DismissSaveSuccessDialog) },
+            title = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text("Pengaturan Tersimpan")
+                }
+            },
+            text = {
+                Text("Pengaturan berhasil disimpan.")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { onEvent(UiEvent.DismissSaveSuccessDialog) }
+                ) {
+                    Text("OK")
+                }
+            },
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+
     // Battery optimization dialog
     if (uiState.showBatteryOptimizationDialog) {
         AlertDialog(

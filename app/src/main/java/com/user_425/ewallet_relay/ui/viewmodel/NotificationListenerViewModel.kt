@@ -122,6 +122,7 @@ class NotificationListenerViewModel @Inject constructor(
             is UiEvent.UpdateForwardAllApps -> updateForwardAllApps(event.enabled)
             is UiEvent.ToggleApiKeyVisibility -> toggleApiKeyVisibility()
             is UiEvent.SaveSettings -> saveSettings()
+            is UiEvent.DismissSaveSuccessDialog -> dismissSaveSuccessDialog()
             is UiEvent.ClearLogs -> clearLogs()
             is UiEvent.ShareLogs -> shareLogs()
             is UiEvent.TestSend -> testSend()
@@ -292,6 +293,7 @@ class NotificationListenerViewModel @Inject constructor(
                 }
                 
                 notificationRepository.insertLog("Pengaturan berhasil disimpan", "SUCCESS")
+                _uiState.value = _uiState.value.copy(showSaveSuccessDialog = true)
                 
             } catch (e: Exception) {
                 Log.e(TAG, "Error saving settings", e)
@@ -300,6 +302,10 @@ class NotificationListenerViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(isLoading = false)
             }
         }
+    }
+
+    private fun dismissSaveSuccessDialog() {
+        _uiState.value = _uiState.value.copy(showSaveSuccessDialog = false)
     }
     
     private fun validateSettings(): ValidationErrors {
