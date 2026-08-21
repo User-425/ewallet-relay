@@ -1,136 +1,132 @@
-# Notification Listener
+# EWallet Relay
 
-A complete Android application for capturing and forwarding system notifications to external APIs with queue management and retry mechanisms.
+An Android app that captures system notifications and forwards them to a webhook, an [ntfy](https://ntfy.sh) topic, or both. It ships with presets for Indonesian e-wallet apps (GoPay, Dana, ShopeePay, OVO, LinkAja) and detects Rupiah amounts inside the notification text. Offline notifications are queued and retried.
 
-## Support This Project
 
-<p>
-  <a href="https://saweria.co/HiddenCyber">
-    <img src="https://asset.hiddencyber.online/donate-buttons/saweria.svg" alt="Donasi via Saweria" height="56">
-  </a>
+## Screenshots
 
-  <a href="https://support.hiddencyber.online">
-    <img src="https://asset.hiddencyber.online/donate-buttons/qris.svg" alt="Dukungan via QRIS" height="56">
-  </a>
-
-  <a href="https://ko-fi.com/hiddencyber">
-    <img src="https://asset.hiddencyber.online/donate-buttons/ko-fi.svg" alt="Ko-fi untuk HiddenCyber" height="56">
-  </a>
-
-  <a href="https://paypal.me/wimboro">
-    <img src="https://asset.hiddencyber.online/donate-buttons/paypal.svg" alt="Donasi via PayPal" height="56">
-  </a>
-</p>
+| Home | Settings |
+|------|----------|
+| ![Home screen](docs/images/home.png) | ![Settings screen](docs/images/settings.png) |
 
 ## Project Structure
 
-- **`app/`** - Android application (Kotlin + Jetpack Compose)
-- **`backend/`** - Node.js Express server for receiving notifications
-- **`README.md`** - This file
+- **`app/`** — Android application (Kotlin + Jetpack Compose)
+- **`backend/`** — Node.js Express server for receiving the webhook payload
+- **`README.md`** — This file
 
 ## Features
 
-- **Notification Capture**: Listen to all system notifications with filtering capabilities
-- **API Forwarding**: Send notification data to external endpoints via HTTP POST
-- **Queue Management**: Offline notifications are queued and retried automatically
-- **Encryption**: API keys are stored securely using Android's EncryptedSharedPreferences
-- **Background Processing**: Uses WorkManager for reliable background retries
-- **Foreground Service**: Ensures continuous operation
-- **Filtering**: Forward all notifications or filter by specific package names
-- **Rupiah Detection**: Automatically detects Indonesian currency amounts in notifications
-- **Logs**: Real-time logging with up to 100 recent entries
-- **Boot Restart**: Automatically restarts services after device reboot
+- **Notification capture** — reads system notifications through a `NotificationListenerService`.
+- **Two delivery targets** — a webhook (HTTP POST, JSON) and an ntfy topic. Enable either or both; each is tried independently.
+- **Per-package filtering** — pick which apps to forward, and optionally require a keyword in the notification text before forwarding. Six Indonesian e-wallet apps are preconfigured.
+- **Forward-all mode** — a toggle that forwards every app's notifications and ignores the filter list.
+- **Rupiah detection** — pulls the Indonesian currency amount out of the text (for example `Rp 100.000` becomes `100000`).
+- **Offline queue** — when the network is down or the webhook fails, the notification is stored in a local Room database and retried by WorkManager.
+- **Encrypted secrets** — the webhook API key and the ntfy token are stored with Android's `EncryptedSharedPreferences`.
+- **Foreground service** — keeps the listener alive.
+- **Boot restart** — services come back after a reboot or an app update.
+- **Logs** — the 100 most recent events, viewable and exportable in the app.
 
-## Setup Instructions
+## Setup
 
-### Android App Setup
+### Android app
 
-### 1. Clone and Build
+**1. Build**
+
 ```bash
 git clone <repository-url>
-cd NotificationListener
+cd ewallet-relay
 ./gradlew assembleDebug
 ```
 
-### 2. Install and Launch
+**2. Install**
+
 ```bash
 adb install app/build/outputs/apk/debug/app-debug.apk
 ```
 
-### 3. Enable Notification Access
-1. Open the app
-2. Tap "Buka Pengaturan Akses Notifikasi"
-3. Find "Notification Listener" in the list
-4. Toggle the switch to ON
-5. Confirm the permission dialog
-6. Return to the app and tap "Cek Status Izin" to verify
+**3. Grant notification access**
 
-### 4. Configure Settings
-- **Endpoint URL (wajib)**: Your webhook URL (must start with http:// or https://)
-- **API Key (opsional)**: Optional API key sent as X-API-Key header
-- **Filter Package**: Comma-separated list of app package names (e.g., `id.dana, com.whatsapp`)
-- **Forward semua aplikasi**: Toggle to forward ALL notifications (ignores filter)
+1. Open the app.
+2. Follow the prompt to the system's notification-access settings.
+3. Find **EWallet Relay** in the list and turn it on.
+4. Confirm the system dialog, then return to the app.
 
-### 5. Save and Activate
-1. Fill in required fields
-2. Tap "Simpan Pengaturan"
-3. Grant battery optimization exemption when prompted (recommended)
+**4. Configure a delivery target**
 
-### Backend Setup
+You need at least one of the two. Fill in the webhook, the ntfy section, or both, then tap **Save Settings**. A confirmation dialog appears once the settings are stored.
 
-1. **Navigate to backend directory**:
+If prompted, allow the app to ignore battery optimization so the service is not killed in the background.
+
+### Backend (optional webhook receiver)
+
+The `backend/` folder is a reference webhook server. It is not required if you only use ntfy.
+
+1. Install dependencies:
    ```bash
    cd backend
    npm install
    ```
-
-2. **Configure environment**:
-   Edit `.env` file and set your API key:
+2. Set your API key in `.env`:
    ```env
    API_KEY=your-secret-api-key
    ```
-
-3. **Start the backend server**:
+3. Run it:
    ```bash
-   npm run dev  # Development mode
-   npm start    # Production mode
+   npm run dev   # development
+   npm start     # production
    ```
+4. In the app, set the endpoint URL to `http://your-server:3000/webhook` and the API key to match.
 
-4. **Configure Android app**:
-   - Set Endpoint URL: `http://your-server:3000/webhook`
-   - Set API Key: `your-secret-api-key`
+See [`backend/README.md`](backend/README.md) for details, including the Cloudflare Worker variant.
 
-See [`backend/README.md`](backend/README.md) for detailed backend setup instructions.
+## Settings Reference
 
-## Field Explanations
+### Webhook
 
-### Endpoint URL
-The HTTP/HTTPS URL where notification data will be sent via POST request.
-- **Required**: Yes
-- **Format**: Must start with `http://` or `https://`
-- **Example**: `https://api.example.com/webhook`
+| Field | Required | Notes |
+|-------|----------|-------|
+| Endpoint URL | Yes, unless ntfy is enabled | Must start with `http://` or `https://`. |
+| API key | No | Sent as the `X-API-Key` header when set. Stored encrypted. |
 
-### API Key
-Optional authentication key sent in the `X-API-Key` header.
-- **Required**: No
-- **Storage**: Encrypted using Android's security library
-- **Usage**: Added to all requests if provided
+### ntfy
 
-### Filter Package
-Comma-separated list of Android app package names to monitor.
-- **Required**: Only if "Forward semua aplikasi" is OFF
-- **Format**: `package1, package2, package3`
-- **Example**: `id.dana, com.whatsapp, com.gojek.app`
-- **Case Sensitive**: Exact match required
+ntfy delivery is independent of the webhook — it posts straight to an ntfy server, so the `backend/` receiver is not involved.
 
-### Forward All Apps Toggle
-When enabled, forwards notifications from ALL apps regardless of filter list.
-- **ON**: All notifications are sent (filter is ignored)
-- **OFF**: Only notifications from apps in filter list are sent
+| Field | Default | Notes |
+|-------|---------|-------|
+| Enable ntfy | Off | Turn on to send a plain-text message to a topic. |
+| Server URL | `https://ntfy.sh` | Point this at a self-hosted server if you run one. |
+| Topic | *(empty)* | Required when ntfy is enabled. |
+| Use auth | Off | When on, the token is sent as `Authorization: Bearer <token>` and stored encrypted. |
 
-## API Payload Format
+### Filtering
 
-### Notification Payload
+The app forwards a notification when one of these is true:
+
+- **Forward all apps** is on, or
+- the notification's package is in the filter list, that entry is enabled, and either it has no keywords or one of its keywords appears in the title, text, subtext, or big text (case-insensitive).
+
+Each filter entry has a package name, a display name, an optional comma-separated keyword list, and an on/off switch. The app starts with these default entries:
+
+| App | Package |
+|-----|---------|
+| GoPay | `com.gojek.gopay` |
+| GoPay Merchant | `com.gojek.gopaymerchant` |
+| Dana | `id.dana` |
+| ShopeePay | `com.shopeepay.id` |
+| OVO | `ovo.id` |
+| LinkAja | `com.telkom.mwallet` |
+
+Keywords narrow a noisy app down to the notifications you care about. For example, adding `masuk, diterima` to a wallet entry forwards incoming-payment notifications and drops the rest. Leave the keyword field empty to forward everything from that app.
+
+The listener always skips its own notifications, ongoing (persistent) notifications, and empty group-summary notifications.
+
+## Webhook Payload
+
+### Notification
+
 ```json
 {
   "deviceId": "550e8400-e29b-41d4-a716-446655440000",
@@ -151,18 +147,38 @@ When enabled, forwards notifications from ALL apps regardless of filter list.
 }
 ```
 
-### Test Payload
+`postedAt` is ISO-8601 with the device's timezone offset. `amountDetected` is the digits only, with separators removed, or `null` when no amount is found.
+
+### Test
+
+Tap **Test Connection** to send a small payload to the webhook:
+
 ```json
 {
-  "test": true,
-  "message": "Test notification from Notification Listener",
-  "timestamp": "2025-08-30T10:00:24Z"
+  "message": "This is a test notification from the Android app."
 }
 ```
 
+The app treats an HTTP `400` from the test call as a pass, since some receivers reject the minimal test body.
+
+### ntfy message
+
+When ntfy is enabled, each notification is posted as a plain-text body:
+
+```
+Aplikasi: DANA
+Judul: DANA
+Pesan: Anda menerima Rp 100.000
+Nominal: 100000
+Waktu: 30/08/2025 10:00:24
+```
+
+The request sets the `Title`, `Priority` (3), and `Tags` (`ewallet-relay`) headers, plus `Authorization` when auth is enabled.
+
 ## cURL Examples
 
-### Basic Request
+Webhook, no key:
+
 ```bash
 curl -X POST "https://api.example.com/webhook" \
   -H "Content-Type: application/json" \
@@ -177,91 +193,95 @@ curl -X POST "https://api.example.com/webhook" \
   }'
 ```
 
-### With API Key
+Webhook, with key:
+
 ```bash
 curl -X POST "https://api.example.com/webhook" \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-secret-api-key" \
-  -d '{
-    "test": true,
-    "message": "Test notification",
-    "timestamp": "2025-08-30T10:00:24Z"
-  }'
+  -d '{ "message": "Test notification" }'
+```
+
+ntfy, with token:
+
+```bash
+curl -X POST "https://ntfy.sh/your-topic" \
+  -H "Title: DANA" \
+  -H "Priority: 3" \
+  -H "Tags: ewallet-relay" \
+  -H "Authorization: Bearer your-ntfy-token" \
+  -d "Anda menerima Rp 100.000"
 ```
 
 ## Architecture
 
 ### Tech Stack
+
 - **Language**: Kotlin
-- **UI**: Jetpack Compose + Material3
+- **UI**: Jetpack Compose + Material 3
 - **DI**: Hilt
-- **Database**: Room
+- **Database**: Room (logs and the retry queue)
 - **Network**: Retrofit + OkHttp
 - **Background**: WorkManager
-- **Storage**: DataStore + EncryptedSharedPreferences
+- **Storage**: DataStore for settings, EncryptedSharedPreferences for secrets
 - **Build**: Gradle Kotlin DSL
 
 ### Package Structure
+
 ```
-com.hiddencyber.notificationlistener/
+com.user_425.ewallet_relay/
 ├── data/
-│   ├── database/         # Room entities, DAOs, database
-│   ├── model/           # API models and data classes
-│   ├── network/         # Retrofit API service
-│   ├── preferences/     # DataStore repository
-│   ├── repository/      # Main data repository
-│   └── security/        # Encrypted storage
-├── di/                  # Hilt dependency injection modules
-├── receiver/            # Broadcast receivers
-├── service/             # Services (Notification Listener, Foreground)
-├── ui/                  # Compose UI screens and components
-├── utils/               # Utility functions
-└── worker/              # WorkManager workers
+│   ├── database/      # Room entities, DAOs, database
+│   ├── model/         # API and filter models
+│   ├── network/       # Retrofit service (webhook + ntfy)
+│   ├── preferences/   # DataStore repository
+│   ├── repository/    # Delivery, queue, and retry logic
+│   └── security/      # Encrypted storage
+├── di/                # Hilt modules
+├── receiver/          # Boot receiver
+├── service/           # Notification listener + foreground service
+├── ui/                # Compose screens and components
+├── utils/             # Rupiah detection, URL checks, helpers
+└── worker/            # WorkManager retry worker
 ```
 
 ## Troubleshooting
 
-### Notifications Not Being Captured
-1. Verify notification access permission is granted
-2. Check if target apps are in filter list (if not forwarding all)
-3. Look at logs for permission or filtering messages
+**Notifications are not captured**
+- Confirm notification access is granted to EWallet Relay.
+- If forward-all is off, confirm the app's package is in the filter list and enabled.
+- If the entry has keywords, confirm the text actually contains one of them.
 
-### API Requests Failing
-1. Verify endpoint URL is correct and accessible
-2. Check network connectivity
-3. Review API key configuration
-4. Check logs for HTTP error codes
+**Webhook requests fail**
+- Check the endpoint URL and that it is reachable from the phone.
+- Check the API key.
+- Read the logs for the HTTP status code. Failed sends are queued and retried.
 
-### Service Stops Working
-1. Disable battery optimization for the app
-2. Check if notification permission was revoked
-3. Restart the app to reinitialize services
+**ntfy messages do not arrive**
+- Confirm ntfy is enabled and the topic is set.
+- If the server needs auth, confirm the token and that "use auth" is on.
 
-### Background Retries Not Working
-1. Ensure device has network connectivity
-2. Check WorkManager constraints in device settings
-3. Verify pending notifications in logs
+**The service stops in the background**
+- Disable battery optimization for the app.
+- Confirm notification access was not revoked.
 
 ## Development
 
-### Building
 ```bash
-./gradlew assembleDebug        # Debug build
-./gradlew assembleRelease      # Release build
+./gradlew assembleDebug          # debug build
+./gradlew assembleRelease        # release build
+./gradlew test                   # unit tests
+./gradlew connectedAndroidTest   # instrumentation tests
 ```
 
-### Testing
-```bash
-./gradlew test                 # Unit tests
-./gradlew connectedAndroidTest # Instrumentation tests
-```
+Filtering logic is covered by `app/src/test/java/com/user_425/ewallet_relay/NotificationFilterTest.kt`.
 
-### Dependencies
-- Android API 24+ (Android 7.0)
-- Target SDK 36
+### Requirements
+
+- Android 7.0 (API 24) or newer, target SDK 36
 - Kotlin 2.0+
 - Jetpack Compose
 
 ## License
 
-This project is for demonstration purposes. Ensure compliance with local privacy laws when capturing notification data.
+This project is for demonstration purposes. Capturing notification data can expose personal and financial information — comply with local privacy laws and only forward to endpoints you control.
